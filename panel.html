@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+    <div id="deepSearchUI">
+      <header>
+        <span>Deep Search Tool</span>
+      </header>
+      <form>
+        <input type="text" placeholder="Enter search term..." id="ds-term" required aria-label="Search term" />
+        <div class="dropdown-row">
+          <select id="ds-mode" aria-label="Search mode">
+            <option value="both">Search in keys and values</option>
+            <option value="key">Search in keys only</option>
+            <option value="value">Search in values only</option>
+          </select>
+          <select id="ds-match" aria-label="Match type">
+            <option value="partial">Partial match</option>
+            <option value="full">Full match</option>
+          </select>
+          <select id="ds-depth" aria-label="Search depth">
+            <option value="2">Fast (Depth 2)</option>
+            <option value="5" selected>Deep (Depth 5)</option>
+            <option value="10">Deeper (Depth 10)</option>
+            <option value="20">Deepest (Depth 20)</option>
+            <option value="50">Crazy Fool (Depth 50)</option>
+          </select>
+          <select id="ds-type-filter" aria-label="Filter by result type" style="display:none;">
+            <option value="all" selected>All Types</option>
+          </select>
+        </div>
+        <div class="button-row">
+          <button type="submit">Search</button>
+          <button type="button" id="ds-stop" style="background: #dc3545; display: none;">Stop Search</button>
+          <button type="button" id="ds-export-json" class="export" disabled>Export JSON</button>
+          <button type="button" id="ds-export-csv" class="export" disabled>Export CSV</button>
+        </div>
+      </form>
+      <div class="loader"></div>
+      <div id="ds-status" style="text-align: center; margin: 10px auto; font-style: italic; color: #666;white-space:nowrap;max-width:95%;overflow:hidden;"></div>
+      <div id="deepSearchResults" aria-live="polite" aria-relevant="additions"></div>
+    </div>
+    <script src="panel.js"></script>
+</body>
+</html>

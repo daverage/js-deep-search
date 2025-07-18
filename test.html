@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Search Extension Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .highlight { background-color: yellow; }
+        code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Deep Search Extension Test Page</h1>
+    <p>This page is for testing the Deep Search Chrome extension with chunking and tab targeting.</p>
+    
+    <div class="test-section">
+        <h2>Test Instructions</h2>
+        <ol>
+            <li>Open DevTools (F12)</li>
+            <li>Go to the "Deep Search" panel</li>
+            <li>Try searching for: <code>test</code>, <code>value</code>, <code>config</code>, <code>data</code></li>
+            <li>Verify results appear in chunks as they're found</li>
+            <li>Check console for tab ID logging to verify correct tab targeting</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Data</h2>
+        <p>Some test content with <span class="highlight">searchable</span> text.</p>
+        <ul>
+            <li>Item 1: <code>testValue</code></li>
+            <li>Item 2: <code>configData</code></li>
+            <li>Item 3: <code>searchTerm</code></li>
+        </ul>
+    </div>
+
+    <script>
+        // Create extensive test data to trigger chunking (>50 results)
+        window.testData = {};
+        window.configData = {};
+        window.searchableData = {};
+        
+        // Generate many test objects to ensure chunking occurs
+        for (let i = 0; i < 100; i++) {
+            window.testData[`testItem${i}`] = {
+                id: i,
+                name: `Test Item ${i}`,
+                value: `testValue${i}`,
+                config: {
+                    enabled: true,
+                    testMode: i % 2 === 0,
+                    data: `configData${i}`
+                },
+                searchableProperty: `searchable${i}`,
+                nestedTest: {
+                    deepValue: `deepTestValue${i}`,
+                    moreData: {
+                        testString: `nestedTest${i}`,
+                        configValue: `nestedConfig${i}`
+                    }
+                }
+            };
+            
+            window.configData[`config${i}`] = {
+                testSetting: `setting${i}`,
+                value: i * 10,
+                testArray: [`test${i}`, `value${i}`, `config${i}`]
+            };
+            
+            window.searchableData[`search${i}`] = {
+                testProperty: `searchableTest${i}`,
+                dataValue: `testData${i}`,
+                configItem: {
+                    testConfig: `configTest${i}`,
+                    searchValue: `valueSearch${i}`
+                }
+            };
+        }
+        
+        // Add some functions for testing
+        window.testFunction = function() {
+            return "This is a test function";
+        };
+        
+        window.configFunction = function(testParam) {
+            return `Config function with ${testParam}`;
+        };
+        
+        // Add arrays with test data
+        window.testArray = [];
+        for (let i = 0; i < 50; i++) {
+            window.testArray.push({
+                testIndex: i,
+                testValue: `arrayTest${i}`,
+                configData: `arrayConfig${i}`
+            });
+        }
+        
+        // Add some circular references for testing
+        window.circularTest = { name: "test" };
+        window.circularTest.self = window.circularTest;
+        
+        // ===== DEVELOPER-ACCESSIBLE VARIABLES =====
+        // These represent variables that developers would typically add to web pages
+        
+        // Application configuration
+        window.config = {
+            apiUrl: 'https://api.example.com',
+            version: '1.2.3',
+            environment: 'production',
+            features: {
+                darkMode: true,
+                analytics: false,
+                debugMode: false
+            },
+            user: {
+                preferences: {
+                    theme: 'dark',
+                    language: 'en'
+                }
+            }
+        };
+        
+        // Application state
+        window.appState = {
+            isLoggedIn: false,
+            currentUser: null,
+            cart: {
+                items: [],
+                total: 0
+            },
+            ui: {
+                sidebarOpen: false,
+                modalVisible: false
+            }
+        };
+        
+        // API utilities
+        window.api = {
+            baseUrl: 'https://api.example.com',
+            token: null,
+            get: function(endpoint) { return fetch(this.baseUrl + endpoint); },
+            post: function(endpoint, data) { 
+                return fetch(this.baseUrl + endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                }); 
+            }
+        };
+        
+        // User data
+        window.user = {
+            id: null,
+            name: '',
+            email: '',
+            permissions: [],
+            settings: {
+                notifications: true,
+                autoSave: true
+            }
+        };
+        
+        // Custom application variables
+        window.myapp = {
+            name: 'My Web Application',
+            modules: {
+                auth: { loaded: true },
+                dashboard: { loaded: false },
+                settings: { loaded: true }
+            },
+            cache: new Map(),
+            utils: {
+                formatDate: function(date) { return date.toLocaleDateString(); },
+                validateEmail: function(email) { return email.includes('@'); }
+            }
+        };
+        
+        // Environment variables
+        window.env = {
+            NODE_ENV: 'production',
+            API_KEY: 'your-api-key-here',
+            DEBUG: false,
+            VERSION: '1.0.0'
+        };
+        
+        // Global utilities
+        window.utils = {
+            debounce: function(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            },
+            throttle: function(func, limit) {
+                let inThrottle;
+                return function() {
+                    const args = arguments;
+                    const context = this;
+                    if (!inThrottle) {
+                        func.apply(context, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                }
+            }
+        };
+        
+        console.log('Test data loaded. Ready for Deep Search testing.');
+        console.log(`Created ${Object.keys(window.testData).length} test items`);
+        console.log(`Created ${Object.keys(window.configData).length} config items`);
+        console.log(`Created ${Object.keys(window.searchableData).length} searchable items`);
+        console.log('=== DEVELOPER VARIABLES ADDED ===');
+        console.log('- window.config (app configuration)');
+        console.log('- window.appState (application state)');
+        console.log('- window.api (API utilities)');
+        console.log('- window.user (user data)');
+        console.log('- window.myapp (custom app variables)');
+        console.log('- window.env (environment variables)');
+        console.log('- window.utils (utility functions)');
+        console.log('Total objects should trigger chunking when searching for "test", "config", or "value"');
+    </script>
+</body>
+</html>

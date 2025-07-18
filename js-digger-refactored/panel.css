@@ -1,0 +1,72 @@
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+#deepSearchUI {
+  padding: 10px;
+}
+
+#deepSearchUI header {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+#deepSearchUI form input,
+#deepSearchUI form select {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+#deepSearchUI .dropdown-row {
+  display: flex;
+  gap: 10px;
+}
+
+#deepSearchUI .button-row {
+  display: flex;
+  gap: 10px;
+}
+
+#deepSearchUI form button {
+  padding: 10px 15px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  flex-grow: 1;
+}
+
+#deepSearchUI form button:hover {
+  background-color: #0056b3;
+}
+
+#deepSearchResults table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+#deepSearchResults th,
+#deepSearchResults td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-all;
+}
+
+#deepSearchResults th {
+  background-color: #f2f2f2;
+}

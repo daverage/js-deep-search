@@ -1,0 +1,29 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+    "name": "JS Digger",
+    "short_name": "JS Digger",
+    "description": "List, search for, and modify all JavaScript functions, objects, and variables on a webpage.",
+    "version": "1.2.8",
+    "manifest_version": 2,
+    
+    "background": {
+      "persistent": true,
+      "scripts": [ "background.js" ]
+    },
+    
+    "browser_action": {
+      "default_icon": "Logos/128logo.png",
+      "default_popup": "popup.html",
+      "default_title": "How to use JS Digger"
+    },
+
+    "devtools_page": "devtools.html",
+    
+    "icons": { 
+        "48": "Logos/48logo.png",
+        "128": "Logos/128logo.png"
+    },
+    
+    "permissions": ["<all_urls>", "tabs"]
+}

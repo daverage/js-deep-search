@@ -1,0 +1,245 @@
+/* Deep Search Panel Styles - Optimized */
+
+/* Base container */
+#deepSearchUI {
+    width: 100%;
+    height: 100%;
+    background: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    z-index: 2147483647;
+}
+
+/* Header (hidden by default) */
+header {
+    background: #333;
+    color: white;
+    padding: 5px;
+    font-size: 16px;
+    display: none;
+    justify-content: space-between;
+}
+
+/* Form layout */
+form {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Flex row layouts */
+.dropdown-row,
+.button-row {
+    display: flex;
+    gap: 12px;
+}
+
+.dropdown-row select,
+.button-row button {
+    flex: 1;
+}
+
+/* Form inputs */
+select,
+input {
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+datalist option {
+    font-size: 13px;
+}
+
+/* Button styles */
+button {
+    padding: 10px;
+    font-size: 14px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+button.export {
+    background: #28a745;
+}
+
+button.export:hover {
+    background: #218838;
+}
+
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Loading animation */
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    display: none;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Results container */
+#deepSearchResults {
+    max-height: 400px;
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+    padding: 0 20px 20px;
+}
+
+/* Table styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+th,
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    background: #f9f9f9;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: 600;
+}
+
+/* Column widths */
+th:nth-child(1), td:nth-child(1) { width: 5%; }
+th:nth-child(2), td:nth-child(2) { width: 50%; }
+th:nth-child(3), td:nth-child(3) { width: 10%; }
+th:nth-child(4), td:nth-child(4) { width: 20%; }
+th:nth-child(5), td:nth-child(5) { width: 15%; }
+
+/* Cell content handling */
+td.path-cell {
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+}
+
+td.preview-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Close button */
+#ds-close:hover {
+    cursor: pointer;
+}
+
+/* Interactive elements - consolidated styles */
+.ds-copy,
+.ds-expand,
+.ds-pathcopy,
+.ds-explore {
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: none;
+    margin-right: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-block;
+    background-color: #f0f8ff;
+    border: 1px solid #007bff;
+    min-width: 20px;
+    min-height: 20px;
+}
+
+.ds-copy:hover,
+.ds-expand:hover,
+.ds-pathcopy:hover,
+.ds-explore:hover {
+    background-color: #e7f3ff;
+    color: #0056b3;
+    transform: translateY(-1px);
+}
+
+/* Icon styles using pseudo-elements */
+.ds-expand::before {
+    content: '▶';
+    margin-right: 4px;
+    transition: transform 0.2s ease;
+}
+
+.ds-expand.expanded::before {
+    content: '▼';
+    transform: rotate(0deg);
+}
+
+.ds-copy::before {
+    content: '📋';
+    margin-right: 4px;
+}
+
+.ds-pathcopy::before {
+    content: '🔗';
+    margin-right: 4px;
+}
+
+.ds-explore::before {
+    content: '🔍';
+    margin-right: 4px;
+}
+
+/* Test data styling */
+.test-data-row {
+    background-color: #fff8e1 !important;
+    border-left: 3px solid #ff9800;
+}
+
+.test-data-row:hover {
+    background-color: #fff3c4 !important;
+}
+
+.test-data-icon {
+    font-size: 12px;
+    margin-right: 4px;
+    opacity: 0.7;
+    vertical-align: middle;
+}
+
+/* Performance optimizations */
+* {
+    box-sizing: border-box;
+}
+
+/* Reduce repaints for scrollable content */
+#deepSearchResults {
+    will-change: scroll-position;
+}
+
+/* Optimize table rendering */
+table {
+    table-layout: fixed;
+}
