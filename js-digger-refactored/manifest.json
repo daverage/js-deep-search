@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "JS Digger (Refactored)",
+  "name": "JS Deep Search",
   "description": "Deep search JavaScript objects on any page, from the comfort of your DevTools.",
   "version": "2.0",
   "devtools_page": "devtools.html",

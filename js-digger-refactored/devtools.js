@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  'JS Digger',
+  'JS Deep Search',
   'icons/icon16.png',
   'panel.html',
   function (panel) {

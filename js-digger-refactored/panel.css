@@ -34,6 +34,33 @@ body {
   gap: 10px;
 }
 
+#deepSearchUI .filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+#deepSearchUI .filter-row label {
+  font-weight: 500;
+  color: #495057;
+  margin: 0;
+}
+
+#deepSearchUI .filter-row select {
+  min-width: 150px;
+}
+
+#deepSearchUI .filter-row span {
+  color: #6c757d;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
 #deepSearchUI .button-row {
   display: flex;
   gap: 10px;
@@ -50,6 +77,33 @@ body {
 
 #deepSearchUI form button:hover {
   background-color: #0056b3;
+}
+
+/* Expanded row styles */
+.ds-expanded-row {
+  background-color: #f8f9fa;
+}
+
+.ds-expanded-row table {
+  margin: 0;
+  border-collapse: collapse;
+}
+
+.ds-expanded-row td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 0.9em;
+}
+
+.ds-expanded-row .path-cell {
+  font-family: 'Courier New', monospace;
+}
+
+.ds-expanded-row .preview-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #deepSearchResults table {
@@ -69,4 +123,87 @@ body {
 
 #deepSearchResults th {
   background-color: #f2f2f2;
+}
+
+/* Column widths */
+#deepSearchResults th:nth-child(1), 
+#deepSearchResults td:nth-child(1) { width: 5%; }
+#deepSearchResults th:nth-child(2), 
+#deepSearchResults td:nth-child(2) { width: 45%; }
+#deepSearchResults th:nth-child(3), 
+#deepSearchResults td:nth-child(3) { width: 10%; }
+#deepSearchResults th:nth-child(4), 
+#deepSearchResults td:nth-child(4) { width: 25%; }
+#deepSearchResults th:nth-child(5), 
+#deepSearchResults td:nth-child(5) { width: 15%; }
+
+/* Cell content handling */
+#deepSearchResults td.path-cell {
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+#deepSearchResults td.preview-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Interactive elements - copy, expand, explore buttons */
+.ds-copy,
+.ds-expand,
+.ds-pathcopy,
+.ds-explore {
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: none;
+  margin-right: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: inline-block;
+  background-color: #f0f8ff;
+  border: 1px solid #007bff;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+.ds-copy:hover,
+.ds-expand:hover,
+.ds-pathcopy:hover,
+.ds-explore:hover {
+  background-color: #e7f3ff;
+  color: #0056b3;
+  transform: translateY(-1px);
+}
+
+/* Icon styles using pseudo-elements */
+.ds-expand::before {
+  content: '▶';
+  margin-right: 4px;
+  transition: transform 0.2s ease;
+}
+
+.ds-expand.expanded::before {
+  content: '▼';
+  transform: rotate(0deg);
+}
+
+.ds-copy::before {
+  content: '📋';
+  margin-right: 4px;
+}
+
+.ds-pathcopy::before {
+  content: '🔗';
+  margin-right: 4px;
+}
+
+.ds-explore::before {
+  content: '🔍';
+  margin-right: 4px;
 }

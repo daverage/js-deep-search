@@ -37,7 +37,25 @@ chrome.runtime.onConnect.addListener(function (port) {
 
   port.onDisconnect.addListener(function (port) {
     if (port.tabId) {
-      delete connections[port.tabId];
+      // Clean up all resources for this tab
+      const tabId = port.tabId;
+      
+      // Send cleanup message to content script before removing connection
+      if (contentScriptReady[tabId]) {
+        chrome.tabs.sendMessage(tabId, { 
+          action: 'cleanup',
+          tabId: tabId 
+        }).catch(() => {
+          // Ignore errors if tab is already closed
+        });
+      }
+      
+      // Clean up all stored data for this tab
+      delete connections[tabId];
+      delete messageQueue[tabId];
+      delete contentScriptReady[tabId];
+      
+      console.log(`Cleaned up resources for tab ${tabId}`);
     }
   });
 });
