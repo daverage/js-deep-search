@@ -282,7 +282,6 @@ function createResultRow(r, i, results) {
     <td>
       <span class="ds-pathcopy" data-path="${escapeHTML(fullPath)}" tabindex="0" role="button" aria-label="Copy path" title="Copy path to clipboard"></span>
       <span class="ds-copy" tabindex="0" role="button" aria-label="Copy value" title="Copy value to clipboard"></span>
-      ${isObj ? `<span class="ds-explore" tabindex="0" role="button" aria-label="Explore this object" title="Set as search scope and explore"></span>` : ''}
     </td>
   `;
 
@@ -330,18 +329,6 @@ function createResultRow(r, i, results) {
         toggleExpand(row, fullPath, r);
       }
     });
-
-    // Explore functionality
-    const exploreBtn = row.querySelector('.ds-explore');
-    if (exploreBtn) {
-      exploreBtn.addEventListener('click', () => exploreObject(fullPath));
-      exploreBtn.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          exploreObject(fullPath);
-        }
-      });
-    }
   }
   return row;
 }
@@ -370,32 +357,6 @@ function toggleExpand(row, objectPath, resultItem) {
       path: objectPath
     });
   }
-}
-
-function exploreObject(objectPath) {
-  const term = $('ds-term').value.trim();
-  if (!term) {
-    $('ds-status').textContent = 'Please enter a search term first.';
-    return;
-  }
-
-  $('ds-status').textContent = 'Exploring object...';
-  currentResults = [];
-  $('deepSearchResults').innerHTML = '';
-
-  // Send message to explore the specific object
-  if (!port) connect();
-  port.postMessage({
-    tabId: chrome.devtools.inspectedWindow.tabId,
-    action: 'exploreObject',
-    path: objectPath,
-    term: term,
-    options: {
-      mode: $('ds-mode').value,
-      matchType: $('ds-match').value,
-      maxDepth: parseInt($('ds-depth').value, 10)
-    }
-  });
 }
 
 function fallbackCopyText(text) {
@@ -491,7 +452,6 @@ function handleObjectProperties(path, properties, success) {
       <td>
         <span class="ds-pathcopy" data-path="${escapeHTML(prop.path)}" tabindex="0" role="button" aria-label="Copy path" title="Copy path to clipboard"></span>
         <span class="ds-copy" data-value="${escapeHTML(prop.originalValue || prop.value)}" tabindex="0" role="button" aria-label="Copy value" title="Copy value to clipboard"></span>
-        ${isObj ? `<span class="ds-explore" data-path="${escapeHTML(prop.path)}" tabindex="0" role="button" aria-label="Explore this object" title="Set as search scope and explore"></span>` : ''}
       </td>
     `;
     
@@ -526,21 +486,6 @@ function handleObjectProperties(path, properties, success) {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             toggleExpand(propRow, prop.path, {type: prop.type, value: prop.value});
-          }
-        });
-      }
-      
-      const exploreBtn = propRow.querySelector('.ds-explore');
-      if (exploreBtn) {
-        exploreBtn.addEventListener('click', (e) => {
-          const path = e.target.getAttribute('data-path');
-          exploreObject(path);
-        });
-        exploreBtn.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            const path = e.target.getAttribute('data-path');
-            exploreObject(path);
           }
         });
       }

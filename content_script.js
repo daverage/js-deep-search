@@ -43,17 +43,34 @@ function isExtensionContextValid() {
 
 // Safe message sending with context validation
 function safeSendMessage(message, callback) {
-    if (!isExtensionContextValid()) {
-        console.log('Content script: Extension context invalidated, cannot send message');
+    // Double-check extension context before any chrome API calls
+    try {
+        if (!chrome || !chrome.runtime || !chrome.runtime.id) {
+            console.log('Content script: Extension context invalidated, cannot send message');
+            if (callback) callback({ error: 'Extension context invalidated' });
+            return false;
+        }
+    } catch (error) {
+        console.log('Content script: Extension context check failed:', error.message);
         if (callback) callback({ error: 'Extension context invalidated' });
         return false;
     }
     
     try {
         chrome.runtime.sendMessage(message, (response) => {
+            // Check for context invalidation in the response callback
             if (chrome.runtime.lastError) {
-                console.log('Content script: Message send error:', chrome.runtime.lastError.message);
-                if (callback) callback({ error: chrome.runtime.lastError.message });
+                const errorMsg = chrome.runtime.lastError.message;
+                console.log('Content script: Message send error:', errorMsg);
+                
+                // Handle specific extension context errors
+                if (errorMsg.includes('Extension context invalidated') || 
+                    errorMsg.includes('message channel closed') ||
+                    errorMsg.includes('receiving end does not exist')) {
+                    console.log('Content script: Extension context lost during message send');
+                }
+                
+                if (callback) callback({ error: errorMsg });
             } else {
                 if (callback) callback(response);
             }
@@ -142,74 +159,109 @@ function handleInjectedMessage(event) {
 
 // Message handler for extension requests
 function handleExtensionMessage(request, sender, sendResponse) {
-    // Validate extension context first
-    if (!isExtensionContextValid()) {
-        console.log('Content script: Extension context invalidated, cannot handle message');
-        sendResponse({ success: false, error: 'Extension context invalidated' });
+    // Validate extension context first with comprehensive error handling
+    try {
+        if (!chrome || !chrome.runtime || !chrome.runtime.id) {
+            console.log('Content script: Extension context invalidated, cannot handle message');
+            sendResponse({ success: false, error: 'Extension context invalidated' });
+            return false;
+        }
+    } catch (error) {
+        console.log('Content script: Extension context validation failed:', error.message);
+        try {
+            sendResponse({ success: false, error: 'Extension context invalidated' });
+        } catch (responseError) {
+            console.log('Content script: Cannot send response - extension context lost');
+        }
         return false;
     }
     
     const { action, payload } = request;
     
     // Inject script if needed
-    injectScript();
+    try {
+        injectScript();
+    } catch (error) {
+        console.log('Content script: Error injecting script:', error.message);
+        sendResponse({ success: false, error: 'Failed to inject script' });
+        return false;
+    }
     
     // Handle different actions with appropriate response patterns
-    switch (action) {
-        case 'executeSearch':
-            // For search execution, we need to wait for the injected script to be ready
-            // and then send a response once the search has started
-            window.postMessage({
-                type: 'FROM_EXTENSION',
-                action: 'startSearch',
-                payload
-            }, '*');
-            
-            // Send response immediately to prevent message channel timeout
-            sendResponse({ success: true, message: 'Search initiated' });
-            return false; // Synchronous response
-            
-        case 'ping':
-        case 'cancelSearch':
-            // Forward message to injected script
-            window.postMessage({
-                type: 'FROM_EXTENSION',
-                action,
-                payload
-            }, '*');
-            
-            // Send immediate response
-            sendResponse({ success: true });
-            return false; // Synchronous response
-            
-        case 'getObjectProperties':
-        case 'exploreObject':
-            // Forward message to injected script
-            window.postMessage({
-                type: 'FROM_EXTENSION',
-                action,
-                payload
-            }, '*');
-            
-            // Send immediate response for these actions too
-            sendResponse({ success: true, message: `${action} initiated` });
-            return false; // Synchronous response
-            
-        default:
-            // Forward other messages
-            window.postMessage({
-                type: 'FROM_EXTENSION',
-                action,
-                payload
-            }, '*');
-            
-            sendResponse({ success: true });
-            return false; // Synchronous response
+    try {
+        switch (action) {
+            case 'executeSearch':
+                // For search execution, we need to wait for the injected script to be ready
+                // and then send a response once the search has started
+                window.postMessage({
+                    type: 'FROM_EXTENSION',
+                    action: 'startSearch',
+                    payload
+                }, '*');
+                
+                // Send response immediately to prevent message channel timeout
+                sendResponse({ success: true, message: 'Search initiated' });
+                return false; // Synchronous response
+                
+            case 'ping':
+            case 'cancelSearch':
+                // Forward message to injected script
+                window.postMessage({
+                    type: 'FROM_EXTENSION',
+                    action,
+                    payload
+                }, '*');
+                
+                // Send immediate response
+                sendResponse({ success: true });
+                return false; // Synchronous response
+                
+            case 'getObjectProperties':
+            case 'exploreObject':
+                // Forward message to injected script
+                window.postMessage({
+                    type: 'FROM_EXTENSION',
+                    action,
+                    payload
+                }, '*');
+                
+                // Send immediate response for these actions too
+                sendResponse({ success: true, message: `${action} initiated` });
+                return false; // Synchronous response
+                
+            default:
+                // Forward other messages
+                window.postMessage({
+                    type: 'FROM_EXTENSION',
+                    action,
+                    payload
+                }, '*');
+                
+                sendResponse({ success: true });
+                return false; // Synchronous response
+        }
+    } catch (error) {
+        console.log('Content script: Error handling message:', error.message);
+        try {
+            sendResponse({ success: false, error: error.message });
+        } catch (responseError) {
+            console.log('Content script: Cannot send error response - extension context lost');
+        }
+        return false;
     }
 }
 
 // Initialize content script
 function initialize() {
+    // Add global error handler for extension context issues
+    window.addEventListener('error', (event) => {
+        if (event.error && event.error.message && 
+            event.error.message.includes('Extension context invalidated')) {
+            console.log('Content script: Caught extension context invalidation error:', event.error.message);
+            event.preventDefault(); // Prevent the error from being logged as uncaught
+        }
+    });
+    
     // Set up message listeners
     window.addEventListener('message', handleInjectedMessage);
     chrome.runtime.onMessage.addListener(handleExtensionMessage);
@@ -218,11 +270,15 @@ function initialize() {
     window.addEventListener('beforeunload', () => {
         console.log('Content script: Page beforeunload - sending cleanup signal');
         // Send cleanup message to injected script
-        window.postMessage({
-            type: 'FROM_EXTENSION',
-            action: 'cancelSearch',
-            payload: { reason: 'page_unload' }
-        }, '*');
+        try {
+            window.postMessage({
+                type: 'FROM_EXTENSION',
+                action: 'cancelSearch',
+                payload: { reason: 'page_unload' }
+            }, '*');
+        } catch (error) {
+            console.log('Content script: Error during cleanup:', error.message);
+        }
     });
     
     // Inject script immediately if DOM is ready

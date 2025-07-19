@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredResults = [];
     let lastRenderedIndex = 0;
     let resultsTable = null;
+    let port;
+    let connectionEstablished = false;
+    let instanceId = Date.now() + Math.random(); // Unique instance ID
     
     // Chunked message handling
     let chunkBuffer = new Map(); // Store chunks by action type
@@ -165,13 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchButton.disabled = false;
                 stopButton.style.display = 'none';
                 break;
-            case 'objectProperties':
-                const expandedRow = document.querySelector(`tr[data-expanded-path="${payload.path}"]`);
-                if (expandedRow) {
-                    displayObjectProperties(expandedRow, payload.properties);
-                    statusDiv.textContent = ''; // Clear status after displaying properties
-                }
-                break;
+
             case 'exploreResults':
                 currentResults = payload.results;
                 filteredResults = currentResults; // Reset filtered results on new exploration
@@ -196,10 +193,60 @@ document.addEventListener('DOMContentLoaded', () => {
         return true; // Indicate that the response will be sent asynchronously
     });
 
+    // --- COMMUNICATION SETUP ---
+    function connect() {
+        if (connectionEstablished) return;
+        
+        port = chrome.runtime.connect({ name: 'devtools-page' });
+        port.postMessage({ 
+            name: 'init', 
+            tabId: chrome.devtools.inspectedWindow.tabId,
+            instanceId: instanceId
+        });
+
+        port.onMessage.addListener(function (msg) {
+            if (msg.action === 'objectProperties') {
+                // Handle the nested payload structure from content script
+                if (msg.payload) {
+                    const { properties, path, error } = msg.payload;
+                    const success = !error;
+                    handleObjectProperties(path, properties, success);
+                } else {
+                    // Fallback for direct structure (if any)
+                    handleObjectProperties(msg.path, msg.properties, msg.success);
+                }
+            }
+            // Handle other messages as needed
+        });
+
+        port.onDisconnect.addListener(() => {
+            connectionEstablished = false;
+            port = null;
+        });
+        
+        connectionEstablished = true;
+    }
+
+    function handleObjectProperties(path, properties, success) {
+        if (!success) {
+            statusDiv.textContent = 'Failed to get object properties.';
+            return;
+        }
+
+        // Find the row that was expanded using a CSS-safe selector
+        // Escape special characters in the path for CSS selector
+        const escapedPath = path.replace(/["\\]/g, '\\$&');
+        const expandedRow = document.querySelector(`[data-expanded-path="${escapedPath}"]`);
+        if (expandedRow) {
+            displayObjectProperties(expandedRow, properties);
+        }
+        statusDiv.textContent = 'Object expanded.';
+    }
+
     // --- UTILITY AND RENDER FUNCTIONS (Copied from your original script) ---
 
     // --- UTILITY AND RENDER FUNCTIONS (Copied from your original script) ---
-    const escapeHTML = str => str?.toString().replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":"&#39;",'"':'&quot;'}[c])) ?? '';
+    const escapeHTML = str => str?.toString().replace(/[&<>']]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":"&#39;",'"':'&quot;'}[c])) ?? '';
 
     function safeStringify(obj, space = 2) {
       const seen = new WeakSet();
@@ -374,18 +421,12 @@ document.addEventListener('DOMContentLoaded', () => {
             row.setAttribute('data-expanded-path', objectPath);
             statusDiv.textContent = 'Expanding object...';
             
-            // Send message to get object properties
-            chrome.tabs.sendMessage(chrome.devtools.inspectedWindow.tabId, {
-                action: "getObjectProperties",
+            // Send message to get object properties using port
+            if (!port) connect();
+            port.postMessage({
+                tabId: chrome.devtools.inspectedWindow.tabId,
+                action: 'getObjectProperties',
                 payload: { path: objectPath }
-            }, (response) => {
-                if (chrome.runtime.lastError || !response || !response.success) {
-                    statusDiv.textContent = 'Error expanding object.';
-                    expandBtn.classList.remove('expanded');
-                    row.removeAttribute('data-expanded-path');
-                    return;
-                }
-                // Response will be handled by the message listener
             });
         }
     }
@@ -540,20 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update filter to show current results
                 typeFilter.dispatchEvent(new Event('change'));
             }
-        } else if (action === 'objectProperties') {
-            // Handle object properties response
-            const { properties, path, error } = payload || {};
-            if (error) {
-                statusDiv.textContent = `Error expanding object: ${error}`;
-                return;
-            }
-            
-            // Find the row that requested this expansion
-            const expandedRow = document.querySelector(`[data-expanded-path="${path}"]`);
-            if (expandedRow) {
-                displayObjectProperties(expandedRow, properties);
-            }
-            statusDiv.textContent = 'Object expanded.';
         } else if (action === 'exploreResults') {
             // Handle exploration results
             const { results = [], isFinal, basePath } = payload || {};
@@ -864,6 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         renderResults(filteredResults);
     });
+
+    // Establish connection when panel loads
+    connect();
 
     // Handle Exports
     exportJsonButton.addEventListener('click', () => {
