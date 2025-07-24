@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Test Explore Functionality</title>
+  <link rel="stylesheet" href="panel.css">
+  <style>
+    body { padding: 20px; font-family: Arial, sans-serif; }
+    .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    .test-button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+    .test-button:hover { background: #0056b3; }
+    .status { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Test Explore Functionality</h1>
+  
+  <div class="test-section">
+    <h3>Test Controls</h3>
+    <button class="test-button" onclick="testExploreFunction()">Test Explore Function</button>
+    <button class="test-button" onclick="testClearScope()">Test Clear Scope</button>
+    <div class="status" id="test-status">Ready to test</div>
+  </div>
+
+  <div id="root"></div>
+
+  <script src="panel.js"></script>
+  <script>
+    function testExploreFunction() {
+      const testPath = "window.document.body";
+      document.getElementById('test-status').textContent = `Testing explore with path: ${testPath}`;
+      
+      try {
+        exploreObject(testPath);
+        document.getElementById('test-status').textContent = `✅ Explore function called successfully with path: ${testPath}`;
+      } catch (error) {
+        document.getElementById('test-status').textContent = `❌ Error: ${error.message}`;
+        console.error('Test error:', error);
+      }
+    }
+    
+    function testClearScope() {
+      const searchScopeInput = document.getElementById('search-scope');
+      const clearScopeBtn = document.getElementById('clear-scope');
+      
+      if (searchScopeInput && clearScopeBtn) {
+        clearScopeBtn.click();
+        document.getElementById('test-status').textContent = '✅ Clear scope button clicked successfully';
+      } else {
+        document.getElementById('test-status').textContent = '❌ Search scope elements not found';
+      }
+    }
+    
+    // Override chrome object for testing
+    window.chrome = undefined;
+    
+    // Wait for the app to initialize
+    setTimeout(() => {
+      document.getElementById('test-status').textContent = 'App initialized. Ready to test explore functionality.';
+    }, 100);
+  </script>
+</body>
+</html>

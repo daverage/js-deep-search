@@ -4,6 +4,7 @@
   let isCleanedUp = false;
   let searchTimeouts = new Set();
   let activeSearches = new Set();
+  let cancelSearch = false;
 
   // Cleanup function
   function cleanup() {
@@ -18,6 +19,25 @@
     activeSearches.clear();
     
     console.log('Injected script cleaned up');
+  }
+
+  // Helper function to create managed timeouts
+  function createManagedTimeout(callback, delay, searchId = null) {
+    const timeoutId = setTimeout(() => {
+      searchTimeouts.delete(timeoutId);
+      if (!isCleanedUp && (!searchId || activeSearches.has(searchId))) {
+        callback();
+      }
+    }, delay);
+    
+    searchTimeouts.add(timeoutId);
+    return timeoutId;
+  }
+
+  // Helper function to clear managed timeout
+  function clearManagedTimeout(timeoutId) {
+    clearTimeout(timeoutId);
+    searchTimeouts.delete(timeoutId);
   }
 
   // Listen for messages from the content script
@@ -36,6 +56,9 @@
     }
 
     if (event.data.action === 'search') {
+      // Reset cancelSearch flag when starting a new search
+      cancelSearch = false;
+      
       const searchId = Date.now() + Math.random();
       activeSearches.add(searchId);
       
@@ -54,20 +77,55 @@
         }
       };
 
-      deepSearch(window, event.data.term, { 
-        ...event.data.options, 
-        onPartialUpdate,
-        searchId 
-      });
+      // Check if a search scope is provided
+      if (event.data.options && event.data.options.scope) {
+        // Use scoped search with the specified object as root
+        const scopeObj = getObjectByPath(event.data.options.scope);
+        if (scopeObj) {
+          deepSearchWithCustomRoot(scopeObj, event.data.options.scope, event.data.term, { 
+            ...event.data.options, 
+            onPartialUpdate,
+            searchId 
+          });
+        } else {
+          // If scope object not found, fall back to window search
+          deepSearch(window, event.data.term, { 
+            ...event.data.options, 
+            onPartialUpdate,
+            searchId 
+          });
+        }
+      } else {
+        // No scope provided, search from window as usual
+        deepSearch(window, event.data.term, { 
+          ...event.data.options, 
+          onPartialUpdate,
+          searchId 
+        });
+      }
     } else if (event.data.action === 'cancel_search') {
+      console.log('Cancelling search - clearing all timeouts and active searches');
       cancelSearch = true;
+      
+      // Immediately clear all timeouts
+      searchTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+      searchTimeouts.clear();
+      
+      // Clear active searches
       activeSearches.clear();
+      
+      // DON'T send empty results - this would clear the display
+      // The panel will handle UI updates (stop button, status) on its own
+      // Just silently stop the search and preserve existing results
     } else if (event.data.action === 'getObjectProperties') {
       if (!isCleanedUp) {
         getObjectProperties(event.data.path);
       }
     } else if (event.data.action === 'exploreObject') {
       if (!isCleanedUp) {
+        // Reset cancelSearch flag when starting a new exploration
+        cancelSearch = false;
+        
         const searchId = Date.now() + Math.random();
         activeSearches.add(searchId);
         
@@ -129,7 +187,12 @@
           return value;
         } catch (e) {
           // If it can't be cloned, return a safe representation
-          return `[${value.constructor ? value.constructor.name : 'Object'}]`;
+          try {
+            return `[${value.constructor ? value.constructor.name : 'Object'}]`;
+          } catch (constructorError) {
+            // Handle objects with problematic constructors
+            return '[Object with no primitive conversion]';
+          }
         }
       }
       
@@ -137,7 +200,12 @@
         return "[Function]";
       }
       
-      return value;
+      try {
+        return value;
+      } catch (primitiveError) {
+        // Handle values that can't be converted to primitives
+        return '[Value with no primitive conversion]';
+      }
     }, space);
   }
 
@@ -157,7 +225,12 @@
       if (value && value.constructor) {
         return `[${value.constructor.name}]`;
       }
-      return String(value);
+      try {
+        return String(value);
+      } catch (stringError) {
+        // Handle objects that can't be converted to primitives
+        return '[Object with no primitive conversion]';
+      }
     }
   }
 
@@ -344,66 +417,54 @@
     ];
   }
 
-  let cancelSearch = false;
-  async function deepSearch(obj, searchTerm, { onPartialUpdate, charLimit = 100000000, maxDepth = 100, blacklist = null, maxResults = 1000, mode = 'both', matchType = 'partial', searchId = null } = {}) {
+  async function deepSearch(obj, searchTerm, { onPartialUpdate, charLimit = 500000, maxDepth = 5, blacklist = null, maxResults = 5000, mode = 'both', matchType = 'partial', searchId = null } = {}) {
     if (isCleanedUp || cancelSearch) return [];
     
     // Use comprehensive blacklist if none provided
     const effectiveBlacklist = blacklist || getPropertyBlacklist();
     
     const results = [];
-    const visited = new Set();
+    const visited = new WeakSet(); // Use WeakSet to allow garbage collection
     let totalChars = 0;
+    let processedObjects = 0;
+    const MAX_PROCESSED_OBJECTS = 50000; // Prevent infinite processing
     const isMatch = t => typeof t === 'string' && (matchType === 'full' ? t.toLowerCase() === searchTerm.toLowerCase() : t.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    function stringValue(val) {
-        let returnVal = "";
-        try {
-            if (val === null) return 'null';
-            if (typeof val === 'string') return val;
-            if (typeof val === 'function') {
-                return val.toString();
-            }
-            if (typeof val === 'object') {
-                 returnVal = Object.prototype.toString.call(val);
-                 if(returnVal === '[object Object]'){
-                    try{
-                        return JSON.stringify(val);
-                    } catch(e){
-                        // Can't stringify, so just return the type
-                    }
-                 }
-                 return returnVal;
-            }
-            return String(val);
-        } catch (err) {
-            try {
-                return Object.prototype.toString.call(val);
-            } catch(e) {
-                return '[unintelligible]';
-            }
-        }
-    }
+    // Using the global stringValue function now
 
     const queue = [{ current: obj, path: 'window', depth: 0 }];
 
     await new Promise(resolve => {
         function processBatch() {
             if (isCleanedUp || cancelSearch || (searchId && !activeSearches.has(searchId))) {
+                resolve();
                 return;
             }
             
-            const batchSize = 50;
+            // Early termination for excessive processing
+            if (processedObjects >= MAX_PROCESSED_OBJECTS) {
+                window.postMessage({ type: 'FROM_INJECTED', action: 'status', data: 'Search terminated: Maximum objects processed' }, '*');
+                onPartialUpdate(results, true);
+                resolve();
+                return;
+            }
+            
+            const batchSize = 25; // Reduced batch size for better responsiveness
             for (let i = 0; i < batchSize && queue.length > 0; i++) {
                 if (isCleanedUp || cancelSearch || (searchId && !activeSearches.has(searchId))) {
+                    resolve();
                     return;
                 }
                 
                 const peekItem = queue[0]; // Peek at first item
-                // Post status update
-                window.postMessage({ type: 'FROM_INJECTED', action: 'status', data: `Scanning: ${peekItem.path} (Depth: ${peekItem.depth}, Queue: ${queue.length})` }, '*');
+                // Post status update less frequently to reduce overhead
+                if (processedObjects % 100 === 0) {
+                    window.postMessage({ type: 'FROM_INJECTED', action: 'status', data: `Scanning: ${peekItem.path} (Depth: ${peekItem.depth}, Queue: ${queue.length})` }, '*');
+                }
 
                 const { current, path, depth } = queue.shift();
+                processedObjects++;
+                
                 if (depth > maxDepth || totalChars >= charLimit || results.length >= maxResults) continue;
 
                 if (current === null || (typeof current !== 'object' && typeof current !== 'function')) continue;
@@ -430,12 +491,13 @@
 
                     const keyStr = String(key);
                     let newPath;
+                    // Optimize path construction to reduce string allocations
                     if (hasNonVarChars(keyStr)) {
-                        newPath = `${path}[${JSON.stringify(keyStr)}]`;
+                        newPath = path + '[' + JSON.stringify(keyStr) + ']';
                     } else if (!isNaN(keyStr) && keyStr.trim() !== '') {
-                        newPath = `${path}[${keyStr}]`;
+                        newPath = path + '[' + keyStr + ']';
                     } else {
-                        newPath = path ? `${path}.${keyStr}` : keyStr;
+                        newPath = path ? path + '.' + keyStr : keyStr;
                     }
                     
                     // Skip problematic browser internal paths
@@ -448,23 +510,36 @@
                         continue;
                     }
 
+                    try {
+                    // Use the global stringValue function
                     const valueStr = stringValue(value);
-                    const currentChars = newPath.length + valueStr.length;
-                    const keyMatches = isMatch(key);
-                    const valMatches = isMatch(valueStr);
-                    const match = (mode === 'both' && (keyMatches || valMatches)) || (mode === 'key' && keyMatches) || (mode === 'value' && valMatches);
+                        const currentChars = newPath.length + valueStr.length;
+                        const keyMatches = isMatch(key);
+                        const valMatches = isMatch(valueStr);
+                        const match = (mode === 'both' && (keyMatches || valMatches)) || (mode === 'key' && keyMatches) || (mode === 'value' && valMatches);
 
-                    if (totalChars + currentChars > charLimit) continue;
+                        if (totalChars + currentChars > charLimit) continue;
 
-                    if (match) {
-                        // Store both the serialized value and safe original value for better handling
-                        results.push({ 
-                          path: newPath, 
-                          type: typeof value, 
-                          value: safeStringify(value),
-                          originalValue: safeValueForPostMessage(value)
-                        });
-                        totalChars += currentChars;
+                        if (match) {
+                            // Store both the serialized value and safe original value for better handling
+                            try {
+                                results.push({ 
+                                  path: newPath, 
+                                  type: typeof value, 
+                                  value: safeStringify(value),
+                                  originalValue: safeValueForPostMessage(value)
+                                });
+                            } catch (pushError) {
+                                // If we can't process this value, skip it and continue
+                                console.warn('Error processing value at path:', newPath);
+                                continue;
+                            }
+                            totalChars += currentChars;
+                        }
+                    } catch (valueError) {
+                        // Skip this property if we can't process it
+                        console.warn('Error processing property:', key);
+                        continue;
                     }
 
                     if ((typeof value === 'object' || typeof value === 'function') && value !== null) {
@@ -514,34 +589,80 @@
       }
 
       const properties = [];
-      const keys = Object.getOwnPropertyNames(obj);
-      const blacklist = getPropertyBlacklist();
+      let keys = [];
       
-      for (const key of keys.slice(0, 50)) { // Limit to first 50 properties
+      try {
+        keys = Object.getOwnPropertyNames(obj);
+      } catch (e) {
+        console.warn(`Error getting property names for ${objectPath}:`, e);
+        // Send empty properties array with success=true to avoid UI hanging
+        window.postMessage({
+          type: 'FROM_INJECTED',
+          action: 'objectProperties',
+          path: objectPath,
+          properties: [],
+          success: true,
+          warning: `Could not access properties: ${e.message}`
+        }, '*');
+        return;
+      }
+      
+      const blacklist = getPropertyBlacklist();
+      let processedCount = 0;
+      
+      // Process only first 50 properties
+      for (const key of keys.slice(0, 50)) {
         // Skip blacklisted properties
         if (blacklist.includes(key)) continue;
         
         try {
-          const value = obj[key];
+          let value;
+          try {
+            value = obj[key];
+          } catch (e) {
+            console.warn(`Error accessing property ${key}:`, e);
+            continue; // Skip this property
+          }
+          
           const newPath = hasNonVarChars(key) ? `${objectPath}[${JSON.stringify(key)}]` : `${objectPath}.${key}`;
           
           // Skip paths that match browser internal patterns
           if (shouldSkipPath(newPath)) continue;
           
-          const valueStr = stringValue(value);
+          let valueStr;
+          try {
+            // Use the global stringValue function
+            valueStr = stringValue(value);
+          } catch (e) {
+            console.warn(`Error getting string value for ${key}:`, e);
+            valueStr = '[Error getting value]';
+          }
+          
+          let originalValue;
+          try {
+            originalValue = safeValueForPostMessage(value);
+          } catch (e) {
+            console.warn(`Error in safeValueForPostMessage for ${key}:`, e);
+            originalValue = '[Error processing value]';
+          }
           
           properties.push({
             path: newPath,
             key: key,
             value: valueStr,
-            originalValue: safeValueForPostMessage(value),
+            originalValue: originalValue,
             type: typeof value
           });
+          
+          processedCount++;
         } catch (e) {
-          // Skip properties that can't be accessed
+          console.warn(`Error processing property ${key}:`, e);
+          // Continue to next property
         }
       }
 
+      console.log(`Successfully processed ${processedCount} properties for ${objectPath}`);
+      
       window.postMessage({
         type: 'FROM_INJECTED',
         action: 'objectProperties',
@@ -550,6 +671,7 @@
         success: true
       }, '*');
     } catch (e) {
+      console.error(`Error in getObjectProperties for ${objectPath}:`, e);
       window.postMessage({
         type: 'FROM_INJECTED',
         action: 'objectProperties',
@@ -596,7 +718,7 @@
   }
 
   // Modified deepSearch for exploring specific objects
-  async function deepSearchWithCustomRoot(obj, rootPath, searchTerm, { onPartialUpdate, charLimit = 100000000, maxDepth = 100, blacklist = null, maxResults = 1000, mode = 'both', matchType = 'partial', searchId = null } = {}) {
+  async function deepSearchWithCustomRoot(obj, rootPath, searchTerm, { onPartialUpdate, charLimit = 100000000, maxDepth = 5, blacklist = null, maxResults = 1000, mode = 'both', matchType = 'partial', searchId = null } = {}) {
     if (isCleanedUp || cancelSearch) return [];
     
     // Use comprehensive blacklist if none provided
@@ -605,19 +727,25 @@
     const results = [];
     const visited = new Set();
     let totalChars = 0;
-    const isMatch = t => typeof t === 'string' && (matchType === 'full' ? t.toLowerCase() === searchTerm.toLowerCase() : t.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Handle empty search term - if empty, match everything
+    const isMatch = searchTerm && searchTerm.trim() ? 
+      (t => typeof t === 'string' && (matchType === 'full' ? t.toLowerCase() === searchTerm.toLowerCase() : t.toLowerCase().includes(searchTerm.toLowerCase()))) :
+      (t => true); // Match everything if no search term
 
     const queue = [{ current: obj, path: rootPath, depth: 0 }];
 
     await new Promise(resolve => {
         function processBatch() {
             if (isCleanedUp || cancelSearch || (searchId && !activeSearches.has(searchId))) {
+                resolve();
                 return;
             }
             
             const batchSize = 50;
             for (let i = 0; i < batchSize && queue.length > 0; i++) {
                 if (isCleanedUp || cancelSearch || (searchId && !activeSearches.has(searchId))) {
+                    resolve();
                     return;
                 }
                 
@@ -670,6 +798,7 @@
                         continue;
                     }
 
+                    // Use the global stringValue function
                     const valueStr = stringValue(value);
                     const currentChars = newPath.length + valueStr.length;
                     const keyMatches = isMatch(key);
@@ -718,6 +847,22 @@
     });
 
     return results;
+  }
+
+  // Global stringValue function to ensure it's available throughout the script
+  function stringValue(val) {
+    if (val === null) return 'null';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'function') return val.toString();
+    if (typeof val === 'object') {
+      try {
+        const objStr = Object.prototype.toString.call(val);
+        return objStr === '[object Object]' ? JSON.stringify(val) : objStr;
+      } catch (e) {
+        return Object.prototype.toString.call(val);
+      }
+    }
+    return String(val);
   }
 
   // Helper function to get object by path

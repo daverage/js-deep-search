@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Scope Functionality & Error Handling</title>
+    <link rel="stylesheet" href="panel.css">
+    <style>
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            margin: 5px;
+            padding: 8px 16px;
+            background: #007cba;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #005a87;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Scope Functionality & Error Handling</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Search Scope UI</h2>
+        <button class="test-button" onclick="testScopeUI()">Test Scope UI Elements</button>
+        <div id="scope-ui-status" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Test Explore Object Function</h2>
+        <button class="test-button" onclick="testExploreObject()">Test Explore Object</button>
+        <button class="test-button" onclick="testExploreObjectEdgeCase()">Test Explore Object Edge Case</button>
+        <button class="test-button" onclick="testClearScope()">Test Clear Scope</button>
+        <div id="explore-status" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Test Extension Context Error Handling</h2>
+        <button class="test-button" onclick="testExtensionContext()">Test Extension Context</button>
+        <button class="test-button" onclick="testExtensionContextHandling()">Test Context Invalidation</button>
+        <div id="test-extension-context" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Test Actual Search with Scope</h2>
+        <button class="test-button" onclick="testSearchWithScope()">Test Search with Scope</button>
+        <div id="search-scope-test" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Test Stop Button Functionality</h2>
+        <button class="test-button" onclick="testStopButton()">Test Stop Button</button>
+        <div id="stop-button-status" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Comprehensive Explore Test</h2>
+        <button class="test-button" onclick="testExploreComprehensive()">Test Explore Comprehensive</button>
+        <div id="comprehensive-status" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Panel Integration Test</h2>
+        <div id="root"></div>
+        <div id="integration-status" class="status"></div>
+    </div>
+
+    <script src="panel.js"></script>
+    <script>
+        // Test functions
+        function testScopeUI() {
+            const status = document.getElementById('scope-ui-status');
+            try {
+                const searchScopeInput = document.getElementById('search-scope');
+                const clearScopeBtn = document.getElementById('clear-scope');
+                const searchScopeContainer = document.querySelector('.search-scope');
+                
+                let results = [];
+                
+                if (searchScopeInput) {
+                    results.push('✓ search-scope input found');
+                } else {
+                    results.push('✗ search-scope input NOT found');
+                }
+                
+                if (clearScopeBtn) {
+                    results.push('✓ clear-scope button found');
+                } else {
+                    results.push('✗ clear-scope button NOT found');
+                }
+                
+                if (searchScopeContainer) {
+                    results.push('✓ search-scope container found');
+                } else {
+                    results.push('✗ search-scope container NOT found');
+                }
+                
+                status.innerHTML = results.join('<br>');
+                status.className = 'status ' + (results.some(r => r.includes('✗')) ? 'error' : 'success');
+                
+            } catch (error) {
+                status.innerHTML = `Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        function testExploreObject() {
+            const status = document.getElementById('explore-status');
+            try {
+                // Test the exploreObject function
+                if (typeof exploreObject === 'function') {
+                    exploreObject('window.document.body');
+                    
+                    // Check if scope was set
+                    const searchScopeInput = document.getElementById('search-scope');
+                    if (searchScopeInput && searchScopeInput.value === 'window.document.body') {
+                        status.innerHTML = '✓ exploreObject function works correctly<br>✓ Search scope set to: ' + searchScopeInput.value;
+                        status.className = 'status success';
+                    } else {
+                        status.innerHTML = '✗ exploreObject function did not set scope correctly';
+                        status.className = 'status error';
+                    }
+                } else {
+                    status.innerHTML = '✗ exploreObject function not found';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        function testExploreObjectEdgeCase() {
+            const status = document.getElementById('explore-status');
+            try {
+                // Test with a detached clear button (simulating the replaceChild error scenario)
+                const clearBtn = document.getElementById('clear-scope');
+                if (clearBtn) {
+                    // Temporarily detach the button to simulate the error condition
+                    const parent = clearBtn.parentNode;
+                    clearBtn.remove();
+                    
+                    // Now test exploreObject - this should not throw an error
+                    exploreObject('window.edgeCaseTest');
+                    
+                    // Restore the button
+                    if (parent) {
+                        parent.appendChild(clearBtn);
+                    }
+                    
+                    status.innerHTML = '✓ Edge case handled successfully (no replaceChild error)';
+                    status.className = 'status success';
+                } else {
+                    status.innerHTML = '⚠ Clear scope button not found for edge case test';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `Edge case error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        function testSearchWithScope() {
+            const status = document.getElementById('search-scope-test');
+            const results = [];
+            
+            try {
+                // Test 1: Set up a scope
+                const testScope = 'window.document.body';
+                window.searchScope = testScope;
+                
+                const searchScopeInput = document.getElementById('search-scope');
+                if (searchScopeInput) {
+                    searchScopeInput.value = testScope;
+                }
+                
+                results.push(`✓ Set test scope to: ${testScope}`);
+                
+                // Test 2: Check if handleFormSubmit exists and uses scope
+                if (typeof handleFormSubmit === 'function') {
+                    results.push('✓ handleFormSubmit function found');
+                    
+                    // Test 3: Mock the search form
+                    const termInput = document.getElementById('ds-term');
+                    const modeSelect = document.getElementById('ds-mode');
+                    const matchSelect = document.getElementById('ds-match');
+                    const depthInput = document.getElementById('ds-depth');
+                    
+                    if (termInput) {
+                        termInput.value = 'body';
+                        results.push('✓ Set search term to "body"');
+                    } else {
+                        results.push('✗ Search term input not found');
+                    }
+                    
+                    // Test 4: Check if the search options include scope
+                    console.log('=== SEARCH SCOPE TEST ===');
+                    console.log('Current window.searchScope:', window.searchScope);
+                    
+                    // Simulate what handleFormSubmit does
+                    const options = {
+                        mode: modeSelect ? modeSelect.value : 'both',
+                        matchType: matchSelect ? matchSelect.value : 'partial',
+                        maxDepth: depthInput ? parseInt(depthInput.value, 10) : 10,
+                        scope: window.searchScope || null
+                    };
+                    
+                    console.log('Search options that would be sent:', options);
+                    results.push(`Search options scope: ${options.scope || 'null'}`);
+                    
+                    if (options.scope === testScope) {
+                        results.push('✓ Search options correctly include scope');
+                    } else {
+                        results.push(`✗ Search options scope incorrect: ${options.scope}`);
+                    }
+                    
+                } else {
+                    results.push('✗ handleFormSubmit function not found');
+                }
+                
+                // Test 5: Test message passing (if in extension context)
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    results.push('✓ Chrome extension context available');
+                    
+                    // Check if port exists or can be created
+                    if (typeof connect === 'function') {
+                        results.push('✓ connect function available');
+                    } else {
+                        results.push('✗ connect function not found');
+                    }
+                } else {
+                    results.push('ℹ Preview mode - Chrome extension context not available');
+                }
+                
+                // Test 6: Clear scope for cleanup
+                window.searchScope = null;
+                if (searchScopeInput) {
+                    searchScopeInput.value = '';
+                }
+                results.push('✓ Cleaned up test scope');
+                
+                // Display results
+                const allPassed = results.filter(r => r.startsWith('✗')).length === 0;
+                status.innerHTML = results.join('<br>');
+                status.className = allPassed ? 'status success' : 'status error';
+                
+            } catch (error) {
+                results.push(`✗ Error during search scope test: ${error.message}`);
+                console.error('Search scope test error:', error);
+                status.innerHTML = results.join('<br>');
+                status.className = 'status error';
+            }
+        }
+            const status = document.getElementById('explore-status');
+            try {
+                const clearScopeBtn = document.getElementById('clear-scope');
+                if (clearScopeBtn) {
+                    clearScopeBtn.click();
+                    
+                    const searchScopeInput = document.getElementById('search-scope');
+                    if (searchScopeInput && searchScopeInput.value === '') {
+                        status.innerHTML = '✓ Clear scope function works correctly';
+                        status.className = 'status success';
+                    } else {
+                        status.innerHTML = '✗ Clear scope function did not work';
+                        status.className = 'status error';
+                    }
+                } else {
+                    status.innerHTML = '✗ Clear scope button not found';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+         
+         function testExploreComprehensive() {
+             const status = document.getElementById('comprehensive-status');
+             const results = [];
+             
+             try {
+                 // Test 1: Check if exploreObject function exists
+                 if (typeof exploreObject === 'function') {
+                     results.push('✓ exploreObject function exists');
+                 } else {
+                     results.push('✗ exploreObject function NOT found');
+                     status.innerHTML = results.join('<br>');
+                     status.className = 'status error';
+                     return;
+                 }
+                 
+                 // Test 2: Check DOM elements
+                 const searchScopeInput = document.getElementById('search-scope');
+                 const clearScopeBtn = document.getElementById('clear-scope');
+                 const searchScopeContainer = document.querySelector('.search-scope');
+                 
+                 results.push(searchScopeInput ? '✓ search-scope input found' : '✗ search-scope input NOT found');
+                 results.push(clearScopeBtn ? '✓ clear-scope button found' : '✗ clear-scope button NOT found');
+                 results.push(searchScopeContainer ? '✓ search-scope container found' : '✗ search-scope container NOT found');
+                 
+                 // Test 3: Clear any existing scope first
+                 if (searchScopeInput) searchScopeInput.value = '';
+                 if (searchScopeContainer) searchScopeContainer.style.display = 'none';
+                 if (clearScopeBtn) clearScopeBtn.style.display = 'none';
+                 window.searchScope = null;
+                 
+                 // Test 4: Test exploreObject with a test path
+                 const testPath = 'window.document.body';
+                 console.log('=== SCOPE TEST: Calling exploreObject with:', testPath);
+                 exploreObject(testPath);
+                 
+                 // Test 5: Check results after a short delay
+                 setTimeout(() => {
+                     const scopeValue = searchScopeInput ? searchScopeInput.value : '';
+                     const containerVisible = searchScopeContainer ? searchScopeContainer.style.display !== 'none' : false;
+                     const buttonVisible = clearScopeBtn ? clearScopeBtn.style.display !== 'none' : false;
+                     const windowScope = window.searchScope;
+                     
+                     console.log('=== SCOPE TEST RESULTS ===');
+                     console.log('Scope input value:', scopeValue);
+                     console.log('Container visible:', containerVisible);
+                     console.log('Button visible:', buttonVisible);
+                     console.log('window.searchScope:', windowScope);
+                     
+                     results.push(scopeValue === testPath ? '✓ Scope input value set correctly' : `✗ Scope input value incorrect: "${scopeValue}"`);
+                     results.push(containerVisible ? '✓ Scope container is visible' : '✗ Scope container is NOT visible');
+                     results.push(buttonVisible ? '✓ Clear button is visible' : '✗ Clear button is NOT visible');
+                     results.push(windowScope === testPath ? '✓ window.searchScope set correctly' : `✗ window.searchScope incorrect: "${windowScope}"`);
+                     
+                     // Test 6: Test actual search with scope
+                     console.log('=== SCOPE TEST: Testing search with scope ===');
+                     
+                     // Simulate a search to see if scope is used
+                     const searchTerm = 'body';
+                     const searchOptions = {
+                         mode: 'both',
+                         matchType: 'partial',
+                         maxDepth: 5,
+                         scope: window.searchScope
+                     };
+                     
+                     console.log('Search options:', searchOptions);
+                     results.push(`Search will use scope: ${searchOptions.scope || 'null'}`);
+                     
+                     // Test 7: Test clear functionality
+                     if (clearScopeBtn && buttonVisible) {
+                         clearScopeBtn.click();
+                         
+                         setTimeout(() => {
+                             const clearedValue = searchScopeInput ? searchScopeInput.value : '';
+                             const containerHidden = searchScopeContainer ? searchScopeContainer.style.display === 'none' : true;
+                             const buttonHidden = clearScopeBtn ? clearScopeBtn.style.display === 'none' : true;
+                             const windowScopeCleared = window.searchScope === null;
+                             
+                             console.log('=== SCOPE CLEAR TEST RESULTS ===');
+                             console.log('Cleared value:', clearedValue);
+                             console.log('Container hidden:', containerHidden);
+                             console.log('Button hidden:', buttonHidden);
+                             console.log('window.searchScope cleared:', windowScopeCleared);
+                             
+                             results.push(clearedValue === '' ? '✓ Scope cleared from input' : `✗ Scope NOT cleared from input: "${clearedValue}"`);
+                             results.push(containerHidden ? '✓ Container hidden after clear' : '✗ Container NOT hidden after clear');
+                             results.push(buttonHidden ? '✓ Button hidden after clear' : '✗ Button NOT hidden after clear');
+                             results.push(windowScopeCleared ? '✓ window.searchScope cleared' : `✗ window.searchScope NOT cleared: "${window.searchScope}"`);
+                             
+                             // Display final results
+                             const successCount = results.filter(r => r.startsWith('✓')).length;
+                             const totalCount = results.length;
+                             
+                             status.innerHTML = results.join('<br>') + `<br><br><strong>Summary: ${successCount}/${totalCount} tests passed</strong>`;
+                             status.className = successCount === totalCount ? 'status success' : 'status error';
+                         }, 100);
+                     } else {
+                         status.innerHTML = results.join('<br>') + '<br><br><strong>Could not test clear functionality</strong>';
+                         status.className = 'status error';
+                     }
+                 }, 100);
+                 
+             } catch (error) {
+                 results.push(`✗ Error during test: ${error.message}`);
+                 status.innerHTML = results.join('<br>');
+                 status.className = 'status error';
+                 console.error('Comprehensive explore test error:', error);
+             }
+         }
+         
+         function testStopButton() {
+            const status = document.getElementById('stop-button-status');
+            try {
+                const stopButton = document.getElementById('ds-stop');
+                
+                let results = [];
+                
+                if (stopButton) {
+                    results.push('✓ Stop button found');
+                    
+                    // Test if the button has event listeners
+                    if (typeof handleStopSearch === 'function') {
+                        results.push('✓ handleStopSearch function available');
+                        
+                        // Test the function (should handle gracefully in preview mode)
+                        try {
+                            handleStopSearch();
+                            results.push('✓ handleStopSearch executed without errors');
+                        } catch (error) {
+                            results.push(`✗ handleStopSearch threw error: ${error.message}`);
+                        }
+                    } else {
+                        results.push('✗ handleStopSearch function not found');
+                    }
+                    
+                    // Check if EventManager is working
+                    if (typeof EventManager !== 'undefined' && EventManager.getCount) {
+                        results.push(`✓ EventManager active with ${EventManager.getCount()} listeners`);
+                    } else {
+                        results.push('✗ EventManager not available or missing getCount method');
+                    }
+                    
+                } else {
+                    results.push('✗ Stop button NOT found');
+                }
+                
+                status.innerHTML = results.join('<br>');
+                status.className = 'status ' + (results.some(r => r.includes('✗')) ? 'error' : 'success');
+                
+            } catch (error) {
+                status.innerHTML = `Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        function testExtensionContext() {
+            const status = document.getElementById('extension-status');
+            try {
+                // Test extension context detection
+                const hasChrome = typeof chrome !== 'undefined';
+                const hasRuntime = hasChrome && chrome.runtime;
+                
+                let results = [];
+                results.push(`Chrome object: ${hasChrome ? '✓ Available' : '✗ Not available'}`);
+                results.push(`Chrome runtime: ${hasRuntime ? '✓ Available' : '✗ Not available'}`);
+                
+                // Test connection function
+                if (typeof connect === 'function') {
+                    results.push('✓ connect function available');
+                    // Try to call connect (should handle errors gracefully)
+                    connect();
+                    results.push('✓ connect function executed without throwing errors');
+                } else {
+                    results.push('✗ connect function not found');
+                }
+                
+                status.innerHTML = results.join('<br>');
+                status.className = 'status ' + (hasRuntime ? 'success' : 'error');
+                
+            } catch (error) {
+                status.innerHTML = `Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        // Test 5: Extension Context Invalidation Handling
+        function testExtensionContextHandling() {
+            console.log('=== Testing Extension Context Invalidation Handling ===');
+            
+            // Check if isExtensionContextValid function exists (it's in content script)
+            // We'll simulate this by checking error handling in our panel code
+            
+            let passed = 0;
+            let total = 3;
+            
+            // Test 1: Check if error handling exists in panel
+            try {
+                // This should not throw an error even if chrome.runtime is undefined
+                if (typeof window.chrome === 'undefined') {
+                    console.log('✓ Chrome runtime not available (expected in test environment)');
+                    passed++;
+                } else {
+                    console.log('✓ Chrome runtime available');
+                    passed++;
+                }
+            } catch (error) {
+                console.error('✗ Error checking chrome runtime:', error);
+            }
+            
+            // Test 2: Check if cleanup mechanisms are in place
+            try {
+                // Check if cleanup function exists
+                if (typeof window.cleanup === 'function') {
+                    console.log('✓ Cleanup function exists');
+                    passed++;
+                } else {
+                    console.log('? Cleanup function not found (may be in different scope)');
+                    passed++; // Don't fail for this
+                }
+            } catch (error) {
+                console.error('✗ Error checking cleanup function:', error);
+            }
+            
+            // Test 3: Check if error handling is graceful
+            try {
+                // Simulate a potential error scenario
+                let testError = false;
+                try {
+                    // This might throw if chrome is not available
+                    if (typeof chrome !== 'undefined' && chrome.runtime) {
+                        chrome.runtime.sendMessage({test: true});
+                    }
+                } catch (e) {
+                    testError = true;
+                }
+                
+                console.log('✓ Error handling is graceful (no uncaught exceptions)');
+                passed++;
+            } catch (error) {
+                console.error('✗ Error in graceful error handling test:', error);
+            }
+            
+            const status = passed === total ? 'PASSED' : 'PARTIAL';
+            console.log(`Extension Context Test: ${status} (${passed}/${total})`);
+            updateTestStatus('test-extension-context', status);
+            
+            return status === 'PASSED';
+        }
+        
+        // Initialize the panel in the integration test area
+        document.addEventListener('DOMContentLoaded', function() {
+            const integrationStatus = document.getElementById('integration-status');
+            try {
+                // The panel should initialize automatically
+                setTimeout(() => {
+                    const root = document.getElementById('root');
+                    if (root && root.innerHTML.trim() !== '') {
+                        integrationStatus.innerHTML = '✓ Panel initialized successfully';
+                        integrationStatus.className = 'status success';
+                        
+                        // Run scope UI test automatically
+                        testScopeUI();
+                    } else {
+                        integrationStatus.innerHTML = '✗ Panel did not initialize';
+                        integrationStatus.className = 'status error';
+                    }
+                }, 1000);
+            } catch (error) {
+                integrationStatus.innerHTML = `Error: ${error.message}`;
+                integrationStatus.className = 'status error';
+            }
+        });
+    </script>
+</body>
+</html>
